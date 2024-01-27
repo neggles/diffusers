@@ -86,6 +86,7 @@ class ResnetBlock2D(nn.Module):
         pre_norm: bool = True,
         eps: float = 1e-6,
         non_linearity: str = "swish",
+        act_scale: Optional[float] = None,
         skip_time_act: bool = False,
         time_embedding_norm: str = "default",  # default, scale_shift, ada_group, spatial
         kernel: Optional[torch.FloatTensor] = None,
@@ -147,7 +148,7 @@ class ResnetBlock2D(nn.Module):
         conv_2d_out_channels = conv_2d_out_channels or out_channels
         self.conv2 = conv_cls(out_channels, conv_2d_out_channels, kernel_size=3, stride=1, padding=1)
 
-        self.nonlinearity = get_activation(non_linearity)
+        self.nonlinearity = get_activation(non_linearity, act_scale)
 
         self.upsample = self.downsample = None
         if self.up:

@@ -461,8 +461,9 @@ class MaskConditionDecoder(nn.Module):
         layers_per_block: int = 2,
         norm_num_groups: int = 32,
         act_fn: str = "silu",
+        act_scale: Optional[float] = None,
         norm_type: str = "group",  # group, spatial
-    ):
+        attn_scale: Optional[float] = None):
         super().__init__()
         self.layers_per_block = layers_per_block
 
@@ -484,11 +485,13 @@ class MaskConditionDecoder(nn.Module):
             in_channels=block_out_channels[-1],
             resnet_eps=1e-6,
             resnet_act_fn=act_fn,
+            resnet_act_scale=act_scale,
             output_scale_factor=1,
             resnet_time_scale_shift="default" if norm_type == "group" else norm_type,
             attention_head_dim=block_out_channels[-1],
             resnet_groups=norm_num_groups,
             temb_channels=temb_channels,
+            attn_scale = attn_scale,
         )
 
         # up
@@ -509,6 +512,7 @@ class MaskConditionDecoder(nn.Module):
                 add_upsample=not is_final_block,
                 resnet_eps=1e-6,
                 resnet_act_fn=act_fn,
+                resnet_act_scale=act_scale,
                 resnet_groups=norm_num_groups,
                 attention_head_dim=output_channel,
                 temb_channels=temb_channels,
@@ -529,7 +533,7 @@ class MaskConditionDecoder(nn.Module):
             self.conv_norm_out = SpatialNorm(block_out_channels[0], temb_channels)
         else:
             self.conv_norm_out = nn.GroupNorm(num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=1e-6)
-        self.conv_act = nn.SiLU()
+        self.conv_act = get_activation("silu", scale=act_scale)
         self.conv_out = nn.Conv2d(block_out_channels[0], out_channels, 3, padding=1)
 
         self.gradient_checkpointing = False

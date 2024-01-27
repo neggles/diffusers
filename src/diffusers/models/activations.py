@@ -29,12 +29,26 @@ ACTIVATION_FUNCTIONS = {
     "relu": nn.ReLU(),
 }
 
+class ScaledActivation(nn.Module):
+    def __init__(self, act_fn: nn.Module, act_scale: float):
+        super().__init__()
+        self.nonlinearity = act_fn
+        self.act_scale = act_scale
 
-def get_activation(act_fn: str) -> nn.Module:
-    """Helper function to get activation function from string.
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = x * self.act_scale
+        x = self.nonlinearity(x)
+        x = x / self.act_scale
+        return x
+
+def get_activation(act_fn: str, scale: float = None) -> nn.Module:
+    r"""Helper function to get activation function from string.
 
     Args:
         act_fn (str): Name of activation function.
+        scale (float, optional): Scaling factor for the activation function.
+                                 If provided, the activation will be scaled.
+                                 Defaults to None.
 
     Returns:
         nn.Module: Activation function.
@@ -42,7 +56,10 @@ def get_activation(act_fn: str) -> nn.Module:
 
     act_fn = act_fn.lower()
     if act_fn in ACTIVATION_FUNCTIONS:
-        return ACTIVATION_FUNCTIONS[act_fn]
+        if scale is not None:
+            return ScaledActivation(ACTIVATION_FUNCTIONS[act_fn], scale)
+        else:
+            return ACTIVATION_FUNCTIONS[act_fn]
     else:
         raise ValueError(f"Unsupported activation function: {act_fn}")
 

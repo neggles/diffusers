@@ -250,6 +250,7 @@ def get_up_block(
     add_upsample: bool,
     resnet_eps: float,
     resnet_act_fn: str,
+    resnet_act_scale: Optional[float] = None,
     resolution_idx: Optional[int] = None,
     transformer_layers_per_block: int = 1,
     num_attention_heads: Optional[int] = None,
@@ -416,6 +417,7 @@ def get_up_block(
             add_upsample=add_upsample,
             resnet_eps=resnet_eps,
             resnet_act_fn=resnet_act_fn,
+            resnet_act_scale=resnet_act_scale,
             resnet_groups=resnet_groups,
             resnet_time_scale_shift=resnet_time_scale_shift,
             temb_channels=temb_channels,
@@ -542,14 +544,17 @@ class UNetMidBlock2D(nn.Module):
         resnet_eps: float = 1e-6,
         resnet_time_scale_shift: str = "default",  # default, spatial
         resnet_act_fn: str = "swish",
+        resnet_act_scale: Optional[float] = None,
         resnet_groups: int = 32,
         attn_groups: Optional[int] = None,
         resnet_pre_norm: bool = True,
         add_attention: bool = True,
         attention_head_dim: int = 1,
+        attn_scale: Optional[float] = None,
         output_scale_factor: float = 1.0,
     ):
         super().__init__()
+        self.attn_scale = attn_scale
         resnet_groups = resnet_groups if resnet_groups is not None else min(in_channels // 4, 32)
         self.add_attention = add_attention
 
@@ -567,6 +572,7 @@ class UNetMidBlock2D(nn.Module):
                 dropout=dropout,
                 time_embedding_norm=resnet_time_scale_shift,
                 non_linearity=resnet_act_fn,
+                act_scale=resnet_act_scale,
                 output_scale_factor=output_scale_factor,
                 pre_norm=resnet_pre_norm,
             )
@@ -609,6 +615,7 @@ class UNetMidBlock2D(nn.Module):
                     dropout=dropout,
                     time_embedding_norm=resnet_time_scale_shift,
                     non_linearity=resnet_act_fn,
+                    act_scale=resnet_act_scale,
                     output_scale_factor=output_scale_factor,
                     pre_norm=resnet_pre_norm,
                 )
@@ -621,7 +628,7 @@ class UNetMidBlock2D(nn.Module):
         hidden_states = self.resnets[0](hidden_states, temb)
         for attn, resnet in zip(self.attentions, self.resnets[1:]):
             if attn is not None:
-                hidden_states = attn(hidden_states, temb=temb)
+                hidden_states = attn(hidden_states, temb=temb, attn_scale=self.attn_scale)
             hidden_states = resnet(hidden_states, temb)
 
         return hidden_states
@@ -2488,6 +2495,7 @@ class UpDecoderBlock2D(nn.Module):
         resnet_eps: float = 1e-6,
         resnet_time_scale_shift: str = "default",  # default, spatial
         resnet_act_fn: str = "swish",
+        resnet_act_scale: Optional[float] = None,
         resnet_groups: int = 32,
         resnet_pre_norm: bool = True,
         output_scale_factor: float = 1.0,
@@ -2510,6 +2518,7 @@ class UpDecoderBlock2D(nn.Module):
                     dropout=dropout,
                     time_embedding_norm=resnet_time_scale_shift,
                     non_linearity=resnet_act_fn,
+                    act_scale=resnet_act_scale,
                     output_scale_factor=output_scale_factor,
                     pre_norm=resnet_pre_norm,
                 )
